@@ -1,21 +1,28 @@
+// Jenkinsfile (Declarative Pipeline) for integration of Dastardly, from Burp Suite.
+
 pipeline {
     agent any
-
     stages {
-        stage('Build') {
+        stage ("Docker Pull Dastardly from Burp Suite container image") {
             steps {
-                echo 'Building..'
+                sh 'docker pull public.ecr.aws/portswigger/dastardly:latest'
             }
         }
-        stage('Test') {
+        stage ("Docker run Dastardly from Burp Suite Scan") {
             steps {
-                echo 'Testing..'
+                cleanWs()
+                sh '''
+                    docker run --user $(id -u) -v ${WORKSPACE}:${WORKSPACE}:rw \
+                    -e BURP_START_URL=http://testphp.vulnweb.com/ \
+                    -e BURP_REPORT_FILE_PATH=${WORKSPACE}/dastardly-report.xml \
+                    public.ecr.aws/portswigger/dastardly:latest
+                '''
             }
         }
-        stage('Deploy') {
-            steps {
-                echo 'Deploying....'
-            }
+    }
+    post {
+        always {
+            junit testResults: 'dastardly-report.xml', skipPublishingChecks: true
         }
     }
 }
